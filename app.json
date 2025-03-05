@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "native",
-    "slug": "native",
+    "slug": "insultemoi",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "6678ef0a-f24c-4669-ac6c-5f497d2e4f42"
+      }
+    },
+    "owner": "baudsouv"
   }
 }

@@ -1,88 +1,133 @@
+// Index.tsx
 import React, { useState, useEffect } from "react";
-import { FlatList, Text, View, StatusBar } from "react-native";
+import { Text, View, Button, TouchableOpacity } from "react-native";
+import { LocationService } from './bundles/LocationService';
+import { NotificationService } from './bundles/NotificationService';
+import { ContactService } from './bundles/ContactService';
 import * as Contacts from 'expo-contacts';
-import Card from "./components/Card";
-import { Button } from "react-native-paper";
-import * as Notifications from 'expo-notifications';
-import * as SMS from 'expo-sms';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const sendPushNotification = async () => {
-  // Demande d'autorisation pour les notifications
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') {
-    console.log('Permission non accordée pour les notifications');
-    return;
-  }
 
-  let insulte = "Hello World"
-  try {
-    const { result } = await SMS.sendSMSAsync(
-      ['+33782604856'],
-      insulte
-    );
-  } catch (error) {
-    console.error('Erreur lors de l\'envoi du SMS :', error);
-    return;
-  }
 
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-    }),
-  });
-  
-  try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Insulte envoye',
-        body: insulte ,
-      },
-      trigger: null,
-    });
-    console.log('Notification programmée avec succès');
-  } catch (error) {
-    console.error('Erreur lors de la programmation de la notification :', error);
-  }
+const generateMessage = (location: any, insult: string) => {
+  return `${insult}\n\nVient me chercher si tu veux : \nLat: ${location.coords.latitude}, \nLong: ${location.coords.longitude}`;
 };
 
-export default function Index() {
+const Index = () => {
   const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
-
+  const [clickCount, setClickCount] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
-      const { status } = await Contacts.requestPermissionsAsync();
-      if (status === 'granted') {
-        const { data } = await Contacts.getContactsAsync({
-          fields: [Contacts.Fields.Emails, Contacts.Fields.PhoneNumbers],
-        });
-        setContacts(data);
-      }
+      const fetchedContacts = await ContactService.getContacts();
+      setContacts(fetchedContacts);
 
+      const storedClickCount = await AsyncStorage.getItem('clickCount');
+      if (storedClickCount) {
+        setClickCount(Number(storedClickCount));  // Mettre à jour l'état avec la valeur récupérée
+      }
     })();
   }, []);
 
-  const renderItem = ({ item }: { item: Contacts.Contact }) => (
-    <Card phone={item.phoneNumbers?.map(phone => phone.number).join(', ') ?? ''} name={item.name} />
-  );
+  const handleSendNotification = async () => {
+    if (contacts.length > 0) {
+      const randomContact = ContactService.getRandomContact(contacts);
+      const randomPhone = randomContact.phoneNumbers?.[0]?.number;
 
+      if (randomPhone) {
+        const location = await LocationService.getLocation();
+        if (location) {
+          const insultesDevHard = [
+            "Nique ta mère, sale fils de pute",
+            "Fils de chienne, va sucer ton daron",
+            "Ta mère la grosse salope du quartier",
+            "Bâtard mal fini, t’es un avorton",
+            "Va niquer ta grand-mère, sac à merde",
+            "Ton père c’est une sous-pute à 2 balles",
+            "Ta daronne suce des queues en boucle",
+            "Espèce de chien, t’as bouffé ta sœur",
+            "Nique ton cul, sale enculé de mes deux",
+            "Ta mère la tepu, elle prend cher",
+            "Fils de rat, t’es né dans une poubelle",
+            "Ton daron c’est un pédé fini",
+            "Ta reuss c’est une chienne galeuse",
+            "Nique ta race, sale bâtard dégénéré",
+            "Ta mère fait la pute pour des clopes",
+            "T’es le sperme rance de ton vieux",
+            "Va niquer ton chien, fils de truie",
+            "Ta daronne c’est une poubelle à foutre",
+            "Sale enculé, t’as pas de couilles",
+            "Nique ta lignée, t’es une erreur"
+          ];
+
+          const insulte = `${insultesDevHard[Math.floor(Math.random() * insultesDevHard.length)]}`
+          //const insulte = "Hello World"
+          const message = generateMessage(location, insulte);
+          const smsSent = await NotificationService.sendSMS(randomPhone, message);
+
+          if (smsSent == "sent") {
+            const newClickCount = clickCount + 1;
+            setClickCount(newClickCount);
+
+            await AsyncStorage.setItem('clickCount', newClickCount.toString());
+
+            await NotificationService.scheduleNotification(message);
+          }
+        }
+      }
+    }
+  };
 
   return (
-    <View >
-      <Button
-        onPress={sendPushNotification}
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FF5428',
+      }}
+    >
+      <TouchableOpacity
         style={{
-          margin: 10,
-          backgroundColor: 'red',
-          paddingVertical: 12,
-          paddingHorizontal: 20,
-          borderRadius: 50,
+          backgroundColor: '#FF5428',
+          borderRadius: 200,
+          width: 300,
+          height: 300,
+          justifyContent: 'center',
+          alignItems: 'center',
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.3,
+          shadowRadius: 3,
+          borderWidth: 10,
+          borderColor: 'white',
         }}
+        onPress={handleSendNotification}
       >
-        <Text style={{ color: 'white', textAlign: 'center' }}>Envoie une insulte</Text>  {/* Texte blanc */}
-      </Button>
+        <Text
+          style={{
+            color: 'white',
+            fontSize: 20,
+            fontWeight: 'bold',
+            textAlign: 'center',
+          }}
+        >
+          Envoie une insulte
+        </Text>
+        <Text
+          style={{
+            color: 'white',
+            fontSize: 12,
+            fontWeight: 'bold',
+            textAlign: 'center',
+          }}
+        >
+          Tu as deja envoyee {clickCount} insultes
+        </Text>
+      </TouchableOpacity>
     </View>
   );
-}
+};
+
+export default Index;
